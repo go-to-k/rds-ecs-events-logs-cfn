@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Resources:
+  ResourcePolicyForEventsToLogs:
+    Type: AWS::Logs::ResourcePolicy
+    Properties:
+      PolicyName: "ECSEvents-ToLogs-ResourcePolicy"
+      PolicyDocument: !Sub 
+        - |
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Principal": {
+                  "Service": "events.amazonaws.com"
+                },
+                "Action": [
+                  "logs:CreateLogStream",
+                  "logs:PutLogEvents"
+                ],
+                "Resource": "${CloudWatchLogsLogGroupArn}"
+              }
+            ]
+          }
+        - CloudWatchLogsLogGroupArn: !GetAtt ECSEventsLogGroup.Arn
+
+  ECSEventsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/events/ECSEvents
+
+  ECSEventsRule:
+    Type: AWS::Events::Rule
+    DependsOn: ResourcePolicyForEventsToLogs
+    Properties:
+      Name: ECSEventsToLogs
+      Description: "Transfer ECSEvents to CloudWatch Logs"
+      State: ENABLED
+      EventPattern: { "source": ["aws.ecs"] }
+      Targets:
+        - Arn: !GetAtt ECSEventsLogGroup.Arn
+          Id: !Sub "ECSEventsLogGroup"

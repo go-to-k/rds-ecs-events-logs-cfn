@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Resources:
+  ResourcePolicyForEventsToLogs:
+    Type: AWS::Logs::ResourcePolicy
+    Properties:
+      PolicyName: "RDSEvents-ToLogs-ResourcePolicy"
+      PolicyDocument: !Sub 
+        - |
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Principal": {
+                  "Service": "events.amazonaws.com"
+                },
+                "Action": [
+                  "logs:CreateLogStream",
+                  "logs:PutLogEvents"
+                ],
+                "Resource": "${CloudWatchLogsLogGroupArn}"
+              }
+            ]
+          }
+        - CloudWatchLogsLogGroupArn: !GetAtt RDSEventsLogGroup.Arn
+
+  RDSEventsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/events/RDSEvents
+
+  RDSEventsRule:
+    Type: AWS::Events::Rule
+    DependsOn: ResourcePolicyForEventsToLogs
+    Properties:
+      Name: RDSEventsToLogs
+      Description: "Transfer RDSEvents to CloudWatch Logs"
+      State: ENABLED
+      EventPattern: { "source": ["aws.rds"] }
+      Targets:
+        - Arn: !GetAtt RDSEventsLogGroup.Arn
+          Id: !Sub "RDSEventsLogGroup"
